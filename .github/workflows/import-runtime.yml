@@ -1,0 +1,43 @@
+name: Import Runtime Backend
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: github.repository == 'zydan25/futter_flask'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Import source runtime backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp_dir="${RUNNER_TEMP}/runtime-source"
+          git clone --depth 1 --branch server-runtime-v2 https://github.com/zydan25/flask.git "$tmp_dir"
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/import-runtime.yml' \
+            "$tmp_dir/" ./
+
+          rm -f .github/workflows/import-runtime.yml
+          rm -f MIGRATION_SOURCE.md MIGRATION_TARGET.md SOURCE_BRANCH.txt
+
+      - name: Commit imported backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: import server-runtime-v2 backend" || exit 0
+          git push origin HEAD:main
